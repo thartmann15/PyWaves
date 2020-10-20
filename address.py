@@ -224,7 +224,7 @@ class Address(object):
             self.privateKey = ''
             self.seed = ''
             self.nonce = 0
-        elif privateKey == '' or privateKey:
+        elif privateKey:
             if len(privateKey) == 0:
                 raise ValueError('Empty private key not allowed')
             else:
@@ -289,7 +289,7 @@ class Address(object):
                 words.append(wordList[w3])
             self.seed = ' '.join(words)
         if publicKey:
-            pubKey = base58.b58decode(publicKey)
+            pubKey = crypto.b58decode(publicKey)
             privKey = ""
         else:
             seedHash = crypto.hashChain(struct.pack(">L", nonce) + crypto.str2bytes(self.seed))
@@ -298,7 +298,7 @@ class Address(object):
                 privKey = curve.generatePrivateKey(accountSeedHash)
             else:
                 # clamping: https://neilmadden.blog/2020/05/28/whats-the-curve25519-clamping-all-about/
-                privKey = base58.b58decode(privateKey)
+                privKey = crypto.b58decode(privateKey)
                 privKeyArray = bytearray(privKey)
                 privKeyArray[0] &= 248;
                 privKeyArray[31] &= 127;
@@ -307,10 +307,10 @@ class Address(object):
             pubKey = curve.generatePublicKey(privKey)
         unhashedAddress = chr(1) + str(self.pywaves.CHAIN_ID) + crypto.hashChain(pubKey)[0:20]
         addressHash = crypto.hashChain(crypto.str2bytes(unhashedAddress))[0:4]
-        self.address = base58.b58encode(crypto.str2bytes(unhashedAddress + addressHash))
-        self.publicKey = base58.b58encode(pubKey)
+        self.address = crypto.b58encode(crypto.str2bytes(unhashedAddress + addressHash))
+        self.publicKey = crypto.b58encode(pubKey)
         if privKey != "":
-            self.privateKey = base58.b58encode(privKey)
+            self.privateKey = crypto.b58encode(privKey)
 
     def issueAsset(self, name, description, quantity, decimals=0, reissuable=False, txFee=pywaves.DEFAULT_ASSET_FEE):
         if not self.privateKey:
@@ -324,7 +324,7 @@ class Address(object):
         else:
             timestamp = int(time.time() * 1000)
             sData = b'\3' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     struct.pack(">H", len(name)) + \
                     crypto.str2bytes(name) + \
                     struct.pack(">H", len(description)) + \
@@ -357,8 +357,8 @@ class Address(object):
     def reissueAsset(self, Asset, quantity, reissuable=False, txFee=pywaves.DEFAULT_TX_FEE):
         timestamp = int(time.time() * 1000)
         sData = b'\5' + \
-                base58.b58decode(self.publicKey) + \
-                base58.b58decode(Asset.assetId) + \
+                crypto.b58decode(self.publicKey) + \
+                crypto.b58decode(Asset.assetId) + \
                 struct.pack(">Q", quantity) + \
                 (b'\1' if reissuable else b'\0') + \
                 struct.pack(">Q",txFee) + \
@@ -383,8 +383,8 @@ class Address(object):
         timestamp = int(time.time() * 1000)
 
         sData = '\6' + \
-                crypto.bytes2str(base58.b58decode(self.publicKey)) + \
-                crypto.bytes2str(base58.b58decode(Asset.assetId)) + \
+                crypto.bytes2str(crypto.b58decode(self.publicKey)) + \
+                crypto.bytes2str(crypto.b58decode(Asset.assetId)) + \
                 crypto.bytes2str(struct.pack(">Q", quantity)) + \
                 crypto.bytes2str(struct.pack(">Q", txFee)) + \
                 crypto.bytes2str(struct.pack(">Q", timestamp))
@@ -423,12 +423,12 @@ class Address(object):
                 timestamp = int(time.time() * 1000)
             sData = b'\4' + \
                     b'\2' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     b'\0\0' + \
                     struct.pack(">Q", timestamp) + \
                     struct.pack(">Q", amount) + \
                     struct.pack(">Q", txFee) + \
-                    base58.b58decode(recipient.address) + \
+                    crypto.b58decode(recipient.address) + \
                     struct.pack(">H", len(attachment)) + \
                     crypto.str2bytes(attachment)
             signature = crypto.sign(self.privateKey, sData)
@@ -440,7 +440,7 @@ class Address(object):
                 "amount": amount,
                 "fee": txFee,
                 "timestamp": timestamp,
-                "attachment": base58.b58encode(crypto.str2bytes(attachment)),
+                "attachment": crypto.b58encode(crypto.str2bytes(attachment)),
                 "signature": signature,
                 "proofs": [ signature ]
             })
@@ -471,10 +471,10 @@ class Address(object):
                 timestamp = int(time.time() * 1000)
             transfersData = b''
             for i in range(0, len(transfers)):
-                transfersData += base58.b58decode(transfers[i]['recipient']) + struct.pack(">Q", transfers[i]['amount'])
+                transfersData += crypto.b58decode(transfers[i]['recipient']) + struct.pack(">Q", transfers[i]['amount'])
             sData = b'\x0b' + \
                     b'\1' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     b'\0' + \
                     struct.pack(">H", len(transfers)) + \
                     transfersData + \
@@ -493,7 +493,7 @@ class Address(object):
                 "fee": txFee,
                 "timestamp": timestamp,
                 "transfers": transfers,
-                "attachment": base58.b58encode(crypto.str2bytes(attachment)),
+                "attachment": crypto.b58encode(crypto.str2bytes(attachment)),
                 "signature": signature,
                 "proofs": [
                     signature
@@ -540,13 +540,13 @@ class Address(object):
                 timestamp = int(time.time() * 1000)
             sData = b'\4' + \
                     b'\2' + \
-                    base58.b58decode(self.publicKey) + \
-                    (b'\1' + base58.b58decode(asset.assetId) if asset else b'\0') + \
-                    (b'\1' + base58.b58decode(feeAsset.assetId) if feeAsset else b'\0') + \
+                    crypto.b58decode(self.publicKey) + \
+                    (b'\1' + crypto.b58decode(asset.assetId) if asset else b'\0') + \
+                    (b'\1' + crypto.b58decode(feeAsset.assetId) if feeAsset else b'\0') + \
                     struct.pack(">Q", timestamp) + \
                     struct.pack(">Q", amount) + \
                     struct.pack(">Q", txFee) + \
-                    base58.b58decode(recipient.address) + \
+                    crypto.b58decode(recipient.address) + \
                     struct.pack(">H", len(attachment)) + \
                     crypto.str2bytes(attachment)
             signature = crypto.sign(self.privateKey, sData)
@@ -559,7 +559,7 @@ class Address(object):
                 "amount": amount,
                 "fee": txFee,
                 "timestamp": timestamp,
-                "attachment": base58.b58encode(crypto.str2bytes(attachment)),
+                "attachment": crypto.b58encode(crypto.str2bytes(attachment)),
                 "signature": signature,
                 "proofs": [ signature ]
             })
@@ -587,12 +587,12 @@ class Address(object):
                 timestamp = int(time.time() * 1000)
             transfersData = b''
             for i in range(0, len(transfers)):
-                transfersData += base58.b58decode(transfers[i]['recipient']) + struct.pack(">Q", transfers[i]['amount'])
+                transfersData += crypto.b58decode(transfers[i]['recipient']) + struct.pack(">Q", transfers[i]['amount'])
             sData = b'\x0b' + \
                     b'\1' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     b'\1' + \
-                    base58.b58decode(asset.assetId) + \
+                    crypto.b58decode(asset.assetId) + \
                     struct.pack(">H", len(transfers)) + \
                     transfersData + \
                     struct.pack(">Q", timestamp) + \
@@ -610,7 +610,7 @@ class Address(object):
                 "fee": txFee,
                 "timestamp": timestamp,
                 "transfers": transfers,
-                "attachment": base58.b58encode(crypto.str2bytes(attachment)),
+                "attachment": crypto.b58encode(crypto.str2bytes(attachment)),
                 "signature": signature,
                 "proofs": [
                     signature
@@ -663,7 +663,7 @@ class Address(object):
             dataObject['fee'] = txFee
             sData = b'\x0c' + \
                     b'\1' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     struct.pack(">H", len(data)) + \
                     dataBinary + \
                     struct.pack(">Q", timestamp) + \
@@ -682,11 +682,11 @@ class Address(object):
         if timestamp == 0:
             timestamp = int(time.time() * 1000)
         expiration = timestamp + maxLifetime * 1000
-        asset1 = b'\0' if amountAsset.assetId=='' else b'\1' + base58.b58decode(amountAsset.assetId)
-        asset2 = b'\0' if priceAsset.assetId=='' else b'\1' + base58.b58decode(priceAsset.assetId)
+        asset1 = b'\0' if amountAsset.assetId=='' else b'\1' + crypto.b58decode(amountAsset.assetId)
+        asset2 = b'\0' if priceAsset.assetId=='' else b'\1' + crypto.b58decode(priceAsset.assetId)
         sData = b'\3' + \
-                base58.b58decode(self.publicKey) + \
-                base58.b58decode(pywaves.MATCHER_PUBLICKEY) + \
+                crypto.b58decode(self.publicKey) + \
+                crypto.b58decode(pywaves.MATCHER_PUBLICKEY) + \
                 asset1 + \
                 asset2 + \
                 orderType + \
@@ -742,8 +742,8 @@ class Address(object):
                 msg = "Order not found"
                 logging.error(msg)
                 self.pywaves.throw_error(msg)
-        sData = base58.b58decode(self.publicKey) + \
-                base58.b58decode(order.orderId)
+        sData = crypto.b58decode(self.publicKey) + \
+                crypto.b58decode(order.orderId)
         signature = crypto.sign(self.privateKey, sData)
         data = json.dumps({
             "sender": self.publicKey,
@@ -761,8 +761,8 @@ class Address(object):
             return id
 
     def cancelOrderByID(self, assetPair, orderId):
-        sData = base58.b58decode(self.publicKey) + \
-                base58.b58decode(orderId)
+        sData = crypto.b58decode(self.publicKey) + \
+                crypto.b58decode(orderId)
         signature = crypto.sign(self.privateKey, sData)
         data = json.dumps({
             "sender": self.publicKey,
@@ -827,8 +827,8 @@ class Address(object):
             if timestamp == 0:
                 timestamp = int(time.time() * 1000)
             sData = b'\x08' + \
-                    base58.b58decode(self.publicKey) + \
-                    base58.b58decode(recipient.address) + \
+                    crypto.b58decode(self.publicKey) + \
+                    crypto.b58decode(recipient.address) + \
                     struct.pack(">Q", amount) + \
                     struct.pack(">Q", txFee) + \
                     struct.pack(">Q", timestamp)
@@ -857,10 +857,10 @@ class Address(object):
             if timestamp == 0:
                 timestamp = int(time.time() * 1000)
             sData = b'\x09' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     struct.pack(">Q", txFee) + \
                     struct.pack(">Q", timestamp) + \
-                    base58.b58decode(leaseId)
+                    crypto.b58decode(leaseId)
             signature = crypto.sign(self.privateKey, sData)
             data = json.dumps({
                 "senderPublicKey": self.publicKey,
@@ -878,7 +878,7 @@ class Address(object):
     def getOrderHistory(self, assetPair, timestamp=0):
         if timestamp == 0:
             timestamp = int(time.time() * 1000)
-        sData = base58.b58decode(self.publicKey) + \
+        sData = crypto.b58decode(self.publicKey) + \
                 struct.pack(">Q", timestamp)
         signature = crypto.sign(self.privateKey, sData)
         data = {
@@ -895,8 +895,8 @@ class Address(object):
             status = order['status']
             orderId = order['id']
             if status=='Accepted' or status=='PartiallyFilled':
-                sData = base58.b58decode(self.publicKey) + \
-                        base58.b58decode(orderId)
+                sData = crypto.b58decode(self.publicKey) + \
+                        crypto.b58decode(orderId)
                 signature = crypto.sign(self.privateKey, sData)
                 data = json.dumps({
                     "sender": self.publicKey,
@@ -909,8 +909,8 @@ class Address(object):
         orders = self.getOrderHistory(assetPair)
         for order in orders:
             orderId = order['id']
-            sData = base58.b58decode(self.publicKey) + \
-                    base58.b58decode(orderId)
+            sData = crypto.b58decode(self.publicKey) + \
+                    crypto.b58decode(orderId)
             signature = crypto.sign(self.privateKey, sData)
             data = json.dumps({
                 "sender": self.publicKey,
@@ -929,13 +929,13 @@ class Address(object):
             if timestamp == 0:
                 timestamp = int(time.time() * 1000)
             '''sData = b'\x0a' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     struct.pack(">H", len(aliasWithNetwork)) + \
                     crypto.str2bytes(str(aliasWithNetwork)) + \
                     struct.pack(">Q", txFee) + \
                     struct.pack(">Q", timestamp)'''
             sData = b'\x0a' + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     struct.pack(">H", len(aliasWithNetwork)) + \
                     aliasWithNetwork + \
                     struct.pack(">Q", txFee) + \
@@ -960,8 +960,8 @@ class Address(object):
                 timestamp = int(time.time() * 1000)
             sData = b'\x0e' + \
                 b'\1' + \
-                base58.b58decode(self.publicKey) + \
-                base58.b58decode(assetId) + \
+                crypto.b58decode(self.publicKey) + \
+                crypto.b58decode(assetId) + \
                 struct.pack(">Q", minimalFeeInAssets) + \
                 struct.pack(">Q", txFee) + \
                 struct.pack(">Q", timestamp)
@@ -995,7 +995,7 @@ class Address(object):
             sData = b'\x0d' + \
                 b'\1' + \
                 crypto.str2bytes(str(self.pywaves.CHAIN_ID)) + \
-                base58.b58decode(self.publicKey) + \
+                crypto.b58decode(self.publicKey) + \
                 b'\1' + \
                 struct.pack(">H", scriptLength) + \
                 compiledScript + \
@@ -1029,8 +1029,8 @@ class Address(object):
             sData = b'\x0f' + \
                 b'\1' + \
                 crypto.str2bytes(str(self.pywaves.CHAIN_ID)) + \
-                base58.b58decode(self.publicKey) + \
-                base58.b58decode(asset.assetId) + \
+                crypto.b58decode(self.publicKey) + \
+                crypto.b58decode(asset.assetId) + \
                 struct.pack(">Q", txFee) + \
                 struct.pack(">Q", timestamp) + \
                 b'\1' + \
@@ -1071,7 +1071,7 @@ class Address(object):
             sData = b'\3' + \
                     b'\2' + \
                     crypto.str2bytes(str(self.pywaves.CHAIN_ID)) + \
-                    base58.b58decode(self.publicKey) + \
+                    crypto.b58decode(self.publicKey) + \
                     struct.pack(">H", len(name)) + \
                     crypto.str2bytes(name) + \
                     struct.pack(">H", len(description)) + \
@@ -1129,21 +1129,21 @@ class Address(object):
             for payment in payments:
                 currentPaymentBytes = b''
                 if ('assetId' in payment and payment['assetId'] != None and payment['assetId'] != ''):
-                    currentPaymentBytes += struct.pack(">Q", payment['amount']) + b'\x01' + base58.b58decode(payment['assetId'])
+                    currentPaymentBytes += struct.pack(">Q", payment['amount']) + b'\x01' + crypto.b58decode(payment['assetId'])
                 else:
                     currentPaymentBytes += struct.pack(">Q", payment['amount']) + b'\x00'
                 paymentBytes += struct.pack(">H", len(currentPaymentBytes)) + currentPaymentBytes
             assetIdBytes = b''
             if (feeAsset):
-                assetIdBytes += b'\x01' + base58.b58decode(feeAsset)
+                assetIdBytes += b'\x01' + crypto.b58decode(feeAsset)
             else:
                 assetIdBytes += b'\x00'
 
             sData = b'\x10' + \
                     b'\x01' + \
                     crypto.str2bytes(str(self.pywaves.CHAIN_ID)) + \
-                    base58.b58decode(self.publicKey) + \
-                    base58.b58decode(dappAddress) + \
+                    crypto.b58decode(self.publicKey) + \
+                    crypto.b58decode(dappAddress) + \
                     b'\x01' + \
                     b'\x09' + \
                     b'\x01' + \
@@ -1180,7 +1180,7 @@ class Address(object):
                 return req
 
     def updateAssetInfo(self, assetId, name, description):
-        decodedAssetId = base58.b58decode(assetId)
+        decodedAssetId = crypto.b58decode(assetId)
         updateInfo = transaction_pb2.UpdateAssetInfoTransactionData()
         updateInfo.asset_id = decodedAssetId
         updateInfo.name = name
@@ -1192,7 +1192,7 @@ class Address(object):
         txFee.amount = 1000000
         transaction = transaction_pb2.Transaction()
         transaction.chain_id = ord(self.pywaves.CHAIN_ID)
-        transaction.sender_public_key = base58.b58decode(self.publicKey)
+        transaction.sender_public_key = crypto.b58decode(self.publicKey)
         transaction.fee.CopyFrom(txFee)
         transaction.timestamp = timestamp
         transaction.version = 1

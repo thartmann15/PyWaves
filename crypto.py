@@ -8,16 +8,18 @@ from operator import xor
 from copy import deepcopy
 import functools
 
-
 if bytes == str:  # python2
     str2bytes = lambda s: s
     bytes2str = lambda b: b
     str2list = lambda s: [ord(c) for c in s]
+    b58encode = lambda x: base58.b58encode(x)
+    b58decode = lambda x: base58.b58decode(x)
 else:  # python3
     str2bytes = lambda s: s.encode('latin-1')
     bytes2str = lambda b: ''.join(map(chr, b))
     str2list = lambda s: [c for c in s]
-
+    b58encode = lambda x: base58.b58encode(x).decode()  # in python3, base58.b58encode (base58 version>=1.0.0) returns a bytearray instead of a string
+    b58decode = lambda x: base58.b58decode(x)
 
 RoundConstants = [
     0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
@@ -265,10 +267,10 @@ def hashChain(s):
 def sign(privateKey, message):
     random64 = os.urandom(64)
 
-    return base58.b58encode(curve.calculateSignature(random64, base58.b58decode(privateKey), message))
+    return b58encode(curve.calculateSignature(random64, base58.b58decode(privateKey), message))
 
 def id(message):
-    return base58.b58encode(hashlib.sha256(message).digest())
+    return b58encode(hashlib.sha256(message).digest())
 
 def verify_signature(pub_key, message, signature):
     """ all of the arguments are expected in a string format """
